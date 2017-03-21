@@ -47,11 +47,6 @@ class TranslateTask extends DefaultTask {
         return Utils.j2objcJar(project)
     }
 
-    @SuppressWarnings("GroovyUnusedDeclaration")
-    @Input String getJ2objcVersion() {
-        return J2objcConfig.from(project).j2objcVersion
-    }
-
     // Source files part of the Java main sourceSet.
     @InputFiles
     FileCollection getMainSrcFiles() {
@@ -135,11 +130,6 @@ class TranslateTask extends DefaultTask {
 
     @TaskAction
     void translate(IncrementalTaskInputs inputs) {
-        // Exceptions must be delayed until Plugin tasks are run
-        // Doing it earlier causes Gradle deadlock:
-        // https://github.com/j2objc-contrib/j2objc-gradle/issues/585
-        Utils.checkGradleVersion(true)
-
         List<String> translateArgs = getTranslateArgs()
         // Don't evaluate this expensive property multiple times.
         FileCollection originalMainSrcFiles = getMainSrcFiles()

@@ -76,18 +76,10 @@ class DependencyResolver {
         project.configurations.getByName('j2objcTranslation').each { File it ->
             // These are the resolved files, NOT the dependencies themselves.
             // Usually source jars.
-            visitTranslationSourceJar(it, false)
-        }
-        project.configurations.getByName('j2objcTestTranslation').each { File it ->
-            // These are the resolved files, NOT the dependencies themselves.
-            // Usually source jars.
-            visitTranslationSourceJar(it, true)
+            visitTranslationSourceJar(it)
         }
         project.configurations.getByName('j2objcLinkage').dependencies.each {
-            visitLink(it, false)
-        }
-        project.configurations.getByName('j2objcTestLinkage').dependencies.each {
-            visitLink(it, true)
+            visitLink(it)
         }
     }
 
@@ -97,7 +89,6 @@ class DependencyResolver {
     }
 
     private static final String MAIN_EXTRACTION_TASK_NAME = 'j2objcTranslatedMainLibraryExtraction'
-    private static final String TEST_EXTRACTION_TASK_NAME = 'j2objcTranslatedTestLibraryExtraction'
 
     /**
      * Adds to the main java sourceSet a to-be-generated directory that contains the contents
@@ -106,8 +97,6 @@ class DependencyResolver {
     static void configureSourceSets(Project project) {
         configureSourceSet(project, "${project.buildDir}/mainTranslationExtraction", SourceSet.MAIN_SOURCE_SET_NAME,
                 MAIN_EXTRACTION_TASK_NAME)
-        configureSourceSet(project, "${project.buildDir}/testTranslationExtraction", SourceSet.TEST_SOURCE_SET_NAME,
-                TEST_EXTRACTION_TASK_NAME)
     }
 
     protected static void configureSourceSet(Project project, String dir, String sourceSetName, String taskName) {
@@ -124,7 +113,7 @@ class DependencyResolver {
     }
 
     // Copy contents of sourceJarFile to build/translationExtraction
-    protected void visitTranslationSourceJar(File sourceJarFile, boolean isTest) {
+    protected void visitTranslationSourceJar(File sourceJarFile) {
         if (!sourceJarFile.absolutePath.endsWith('.jar')) {
             String msg = "`j2objc[Test]Translation` dependencies can only handle " +
                          "source jar files, not ${sourceJarFile.absolutePath}"
@@ -132,28 +121,33 @@ class DependencyResolver {
         }
         PatternSet pattern = new PatternSet()
         pattern.include('**/*.java')
-        Copy copy = project.tasks.getByName(isTest ? TEST_EXTRACTION_TASK_NAME : MAIN_EXTRACTION_TASK_NAME) as Copy
+        Copy copy = project.tasks.getByName(MAIN_EXTRACTION_TASK_NAME) as Copy
         copy.from(project.zipTree(sourceJarFile).matching(pattern))
     }
 
-    protected void visitLink(Dependency dep, boolean isTest) {
+    protected void visitLink(Dependency dep) {
         if (dep instanceof ProjectDependency) {
-            visitLinkProjectDependency((ProjectDependency) dep, isTest)
+            visitLinkProjectDependency((ProjectDependency) dep)
         } else if (dep instanceof SelfResolvingDependency) {
-            visitLinkSelfResolvingDependency((SelfResolvingDependency) dep, isTest)
+            visitLinkSelfResolvingDependency((SelfResolvingDependency) dep)
         } else {
-            visitLinkGenericDependency(dep, isTest)
+            visitLinkGenericDependency(dep)
         }
     }
 
     protected void visitLinkSelfResolvingDependency(
-            SelfResolvingDependency dep, boolean isTest) {
+            SelfResolvingDependency dep) {
         // TODO: handle native prebuilt libraries as files.
         throw new UnsupportedOperationException(
-            "Cannot automatically link J2ObjC dependency: $dep, test: $isTest")
+            "Cannot automatically link J2ObjC dependency: $dep")
     }
 
-    protected void visitLinkProjectDependency(ProjectDependency dep, boolean isTest) {
+    protected void visitLinkGenericDependency(Dependency dep) {
+        throw new UnsupportedOperationException(
+                "Cannot automatically link J2ObjC dependency: $dep")
+    }
+
+    protected void visitLinkProjectDependency(ProjectDependency dep) {
         Project beforeProject = dep.dependencyProject
         // We need to have j2objcConfig on the beforeProject configured first.
         project.evaluationDependsOn beforeProject.path
@@ -179,20 +173,12 @@ class DependencyResolver {
         // we are guaranteed that the java plugin, which creates the jar task,
         // is also present.
         Task j2objcPrebuild = project.tasks.getByName('j2objcPreBuild')
-        project.logger.debug("${project.name}:j2objcPreBuild dependsOn ${beforeProject.name}:j2objcBuild")
         project.logger.debug("${project.name}:j2objcPreBuild dependsOn ${beforeProject.name}:jar")
-        j2objcPrebuild.dependsOn(beforeProject.tasks.getByName('j2objcBuild'))
         j2objcPrebuild.dependsOn(beforeProject.tasks.getByName('jar'))
 
         AbstractArchiveTask jarTask = beforeProject.tasks.getByName('jar') as AbstractArchiveTask
         project.logger.debug("$project:j2objcTranslate must use ${jarTask.archivePath}")
         // TODO: Handle separate classpaths for main translation and test translation.
         j2objcConfig.translateClasspaths += jarTask.archivePath.absolutePath
-        j2objcConfig.nativeCompilation.dependsOnJ2objcLib(beforeProject, isTest)
-    }
-
-    protected void visitLinkGenericDependency(Dependency dep, boolean isTest) {
-        throw new UnsupportedOperationException(
-            "Cannot automatically link J2ObjC dependency: $dep, test: $isTest")
     }
 }

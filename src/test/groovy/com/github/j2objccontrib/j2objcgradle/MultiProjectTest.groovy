@@ -49,12 +49,6 @@ class MultiProjectTest {
         Utils.setFakeOSNone()
     }
 
-    @Test(expected = InvalidUserDataException)
-    void twoProjectsWithDependsOnJ2objcLib_MissingPluginOnProject1() {
-        j2objcConfig2.dependsOnJ2objcLib(proj1)
-        j2objcConfig2.finalConfigure()
-    }
-
     @Ignore('https://github.com/j2objc-contrib/j2objc-gradle/issues/374')
     @Test
     void twoProjectsWithDependsOnJ2objcLib_Works() {

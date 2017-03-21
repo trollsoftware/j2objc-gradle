@@ -63,54 +63,39 @@ class DependencyConverter {
 
     void configureAll() {
         project.configurations.getByName('compile').dependencies.each {
-            visit(it, false)
-        }
-        project.configurations.getByName('testCompile').dependencies.each {
-            visit(it, true)
+            visit(it)
         }
     }
 
-    protected void visit(Dependency dep, boolean isTest) {
+    protected void visit(Dependency dep) {
         if (dep instanceof ProjectDependency) {
             // ex. `compile project(':peer1')`
-            visitProjectDependency(dep as ProjectDependency, isTest)
+            visitProjectDependency(dep as ProjectDependency)
         } else if (dep instanceof SelfResolvingDependency) {
             // ex. `compile fileTree(dir: 'libs', include: ['*.jar'])`
-            visitSelfResolvingDependency(dep as SelfResolvingDependency, isTest)
+            visitSelfResolvingDependency(dep as SelfResolvingDependency)
         } else if (dep instanceof ExternalModuleDependency) {
             // ex. `compile "com.google.code.gson:gson:2.3.1"`
-            visitExternalModuleDependency(dep as ExternalModuleDependency, isTest)
+            visitExternalModuleDependency(dep as ExternalModuleDependency)
         } else {
             // Everything else
-            visitGenericDependency(dep, isTest)
+            visitGenericDependency(dep)
         }
     }
 
-    protected void failOnBuildClosureForTests(Dependency dep, boolean isTest) {
-        if (isTest) {
-            String msg = "Cannot translate testCompile dependency $dep using --build-closure; " +
-                         "please build this as a separate Gradle project, and then add a testCompile " +
-                         "dependency to that project.\n" +
-                         "https://github.com/j2objc-contrib/j2objc-gradle/blob/master/dependencies.md#build-standalone-third-party-library"
-            throw new InvalidUserDataException(msg)
-        }
-    }
-
-    protected void visitSelfResolvingDependency(
-            SelfResolvingDependency dep, boolean isTest) {
-        failOnBuildClosureForTests(dep, isTest)
+    protected void visitSelfResolvingDependency(SelfResolvingDependency dep) {
         project.logger.debug("j2objc dependency converter: Translating file dep: $dep")
         project.configurations.getByName('j2objcTranslationClosure').dependencies.add(
                 dep.copy())
     }
 
-    protected void visitProjectDependency(ProjectDependency dep, boolean isTest) {
+    protected void visitProjectDependency(ProjectDependency dep) {
         project.logger.debug("j2objc dependency converter: Linking Project: $dep")
-        project.configurations.getByName(isTest ? 'j2objcTestLinkage' : 'j2objcLinkage').dependencies.add(
+        project.configurations.getByName('j2objcLinkage').dependencies.add(
                 dep.copy())
     }
 
-    protected void visitExternalModuleDependency(ExternalModuleDependency dep, boolean isTest) {
+    protected void visitExternalModuleDependency(ExternalModuleDependency dep) {
         project.logger.debug("j2objc dependency converter: External module dep: $dep")
         // If the dep is already in the j2objc dist, ignore it.
         if (J2OBJC_DEFAULT_LIBS.contains("${dep.group}:${dep.name}".toString())) {
@@ -120,7 +105,6 @@ class DependencyConverter {
             project.logger.debug("-- Skipped J2OBJC_DEFAULT_LIB: $dep")
             return
         }
-        failOnBuildClosureForTests(dep, isTest)
         project.logger.debug("-- Copied as source: $dep")
         String group = dep.group == null ? '' : dep.group
         String version = dep.version == null ? '' : dep.version
@@ -128,8 +112,7 @@ class DependencyConverter {
         project.dependencies.add('j2objcTranslationClosure', "${group}:${dep.name}:${version}:sources")
     }
 
-    protected void visitGenericDependency(Dependency dep, boolean isTest) {
-        failOnBuildClosureForTests(dep, isTest)
+    protected void visitGenericDependency(Dependency dep) {
         project.logger.warn("j2objc dependency converter: Unknown dependency type: $dep; copying naively")
         project.configurations.getByName('j2objcTranslationClosure').dependencies.add(
                 dep.copy())

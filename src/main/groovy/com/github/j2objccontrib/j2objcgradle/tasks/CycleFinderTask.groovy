@@ -43,11 +43,6 @@ class CycleFinderTask extends DefaultTask {
         return Utils.cycleFinderJar(project)
     }
 
-    @SuppressWarnings("GroovyUnusedDeclaration")
-    @Input String getJ2objcVersion() {
-        return J2objcConfig.from(project).j2objcVersion
-    }
-
     @InputFiles
     FileCollection getSrcInputFiles() {
         // Note that translatePattern does not need to be an @Input because it is

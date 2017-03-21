@@ -53,8 +53,6 @@ class J2objcConfigTest {
     void testConstructor() {
         J2objcConfig ext = new J2objcConfig(proj)
 
-        assert proj.file('build/j2objcOutputs').absolutePath == ext.destPodspecDir
-        assert proj.file('build/j2objcOutputs/lib').absolutePath == ext.destLibDir
         assert proj.file('build/j2objcOutputs/src/main').absolutePath == ext.destSrcMainDir
         assert proj.file('build/j2objcOutputs/src/test').absolutePath == ext.destSrcTestDir
     }
@@ -64,8 +62,6 @@ class J2objcConfigTest {
     void testGetDestDirFile_AllVariations() {
         J2objcConfig ext = new J2objcConfig(proj)
 
-        assert proj.file('build/j2objcOutputs/lib').absolutePath ==
-               ext.getDestLibDirFile().absolutePath
         assert proj.file('build/j2objcOutputs/src/main/objc').absolutePath ==
                ext.getDestSrcDirFile('main', 'objc').absolutePath
         assert proj.file('build/j2objcOutputs/src/test/objc').absolutePath ==
@@ -94,7 +90,6 @@ class J2objcConfigTest {
     void testFinalConfigure_MacOSX() {
         Utils.setFakeOSMacOSX()
         J2objcConfig ext = new J2objcConfig(proj)
-        ext.skipJ2objcVerification = true
 
         assert !ext.finalConfigured
         ext.testingOnlyPrepConfigurations()
@@ -122,7 +117,6 @@ class J2objcConfigTest {
         J2objcConfig ext = new J2objcConfig(proj)
         assert !ext.finalConfigured
         ext.translateOnlyMode = true
-        ext.skipJ2objcVerification = true
 
         ext.testingOnlyPrepConfigurations()
         ext.finalConfigure()
@@ -135,40 +129,7 @@ class J2objcConfigTest {
         J2objcConfig ext = new J2objcConfig(proj)
         assert !ext.finalConfigured
         ext.translateOnlyMode = true
-        ext.skipJ2objcVerification = true
 
-        ext.testingOnlyPrepConfigurations()
-        ext.finalConfigure()
-        assert ext.finalConfigured
-    }
-
-    // This warns against doing a native compile on a nonMacOSX system
-    @Test
-    void testFinalConfigure_LinuxIsUnsupported() {
-        Utils.setFakeOSLinux()
-        J2objcConfig ext = new J2objcConfig(proj)
-        ext.skipJ2objcVerification = true
-
-        expectedException.expect(InvalidUserDataException.class)
-        expectedException.expectMessage('Mac OS X is required for Native Compilation of translated code')
-
-        assert !ext.finalConfigured
-        ext.testingOnlyPrepConfigurations()
-        ext.finalConfigure()
-        assert ext.finalConfigured
-    }
-
-    // This warns against doing a native compile on a nonMacOSX system
-    @Test
-    void testFinalConfigure_WindowsIsUnsupported() {
-        Utils.setFakeOSWindows()
-        J2objcConfig ext = new J2objcConfig(proj)
-        ext.skipJ2objcVerification = true
-
-        expectedException.expect(InvalidUserDataException.class)
-        expectedException.expectMessage('Mac OS X is required for Native Compilation of translated code')
-
-        assert !ext.finalConfigured
         ext.testingOnlyPrepConfigurations()
         ext.finalConfigure()
         assert ext.finalConfigured
@@ -250,71 +211,5 @@ class J2objcConfigTest {
     @Test
     void testVerifyNoSpaceArgs_AllowSpaces() {
         J2objcConfig.verifyArgs('testArgs', false, '-arg1 -arg2')
-    }
-
-    // A small number of the configuration variable must be String[]
-    // instead of List<String>, this tests 'extraLinkerArgs' as an example.
-    @Test
-    // Skip to allow: "= ['-arg1']" as it would be used in j2objcConfig
-    @CompileStatic(TypeCheckingMode.SKIP)
-    void testStringArrayArgs() {
-        J2objcConfig j2objcConfig = new J2objcConfig(proj)
-        j2objcConfig.extraLinkerArgs = ['-arg1']
-
-        j2objcConfig.extraLinkerArgs('-arg2', '-arg3')
-
-        String[] expected = ['-arg1', '-arg2', '-arg3']
-        assert Arrays.equals(expected, j2objcConfig.extraLinkerArgs)
-    }
-
-    @Test
-    void testSupportedAndEnabledArchs_NoLocalProperties() {
-        // there is no local.properties file in this case
-        J2objcConfig j2objcConfig = new J2objcConfig(proj)
-        Assert.assertEqualsNoOrder(j2objcConfig.activeArchs.toArray(),
-                j2objcConfig.supportedArchs.toArray())
-    }
-
-    @Test
-    void testSupportedAndEnabledArchs_SubsetEnabledArchsSpecified() {
-        J2objcConfig j2objcConfig = TestingUtils.setupProjectJ2objcConfig(
-                new TestingUtils.ProjectConfig(createJ2objcConfig: true,
-                        extraLocalProperties: ['j2objc.enabledArchs=ios_armv7,ios_armv7s']))
-        assert j2objcConfig.activeArchs == ['ios_armv7']
-    }
-
-    @Test
-    // Skip to allow: "+= 'ios_armv7s'" as it would be used in j2objcConfig
-    @CompileStatic(TypeCheckingMode.SKIP)
-    void testSupportedAndEnabledArchs_SubsetEnabledArchsSpecifiedWithAdditionalSupportedArchs() {
-        J2objcConfig j2objcConfig = TestingUtils.setupProjectJ2objcConfig(
-                new TestingUtils.ProjectConfig(createJ2objcConfig: true,
-                        extraLocalProperties: ['j2objc.enabledArchs=ios_armv7,ios_armv7s']))
-        j2objcConfig.supportedArchs += 'ios_armv7s'
-        assert j2objcConfig.activeArchs == ['ios_armv7', 'ios_armv7s']
-    }
-
-    @Test(expected = InvalidUserDataException.class)
-    void testSupportedAndEnabledArchs_SubsetAndBogusEnabledArchsSpecified() {
-        J2objcConfig j2objcConfig = TestingUtils.setupProjectJ2objcConfig(
-                new TestingUtils.ProjectConfig(createJ2objcConfig: true,
-                        extraLocalProperties: ['j2objc.enabledArchs=ios_armv7,bogus,ios_armv7s']))
-        j2objcConfig.getActiveArchs()
-    }
-
-    @Test
-    void testSupportedAndEnabledArchs_EmptyEnabledArchSpecified() {
-        J2objcConfig j2objcConfig = TestingUtils.setupProjectJ2objcConfig(
-                new TestingUtils.ProjectConfig(createJ2objcConfig: true,
-                        extraLocalProperties: ['j2objc.enabledArchs=']))
-        assert j2objcConfig.activeArchs.empty
-    }
-
-    @Test
-    void testSupportedAndEnabledArchs_NoEnabledArchsSpecified() {
-        J2objcConfig j2objcConfig = TestingUtils.setupProjectJ2objcConfig(
-                new TestingUtils.ProjectConfig(createJ2objcConfig: true))
-        Assert.assertEqualsNoOrder(j2objcConfig.activeArchs.toArray(),
-                j2objcConfig.supportedArchs.toArray())
     }
 }
