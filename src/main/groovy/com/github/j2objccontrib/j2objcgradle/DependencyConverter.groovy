@@ -62,8 +62,24 @@ class DependencyConverter {
     }
 
     void configureAll() {
-        project.configurations.getByName('compile').dependencies.each {
+        def configuration = project.configurations.getByName('compile')
+
+        configuration.dependencies.each {
             visit(it)
+        }
+
+        // Visit transitive dependencies
+        configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            def moduleVersion = artifact.moduleVersion.id
+            def extDependency = project.dependencies.create(moduleVersion.toString());
+
+            if (configuration.dependencies.find {
+                it.group.equals(extDependency.group) &&
+                it.name.equals(extDependency.name) &&
+                it.version.equals(extDependency.version)
+            } == null) {
+                visit(extDependency)
+            }
         }
     }
 
