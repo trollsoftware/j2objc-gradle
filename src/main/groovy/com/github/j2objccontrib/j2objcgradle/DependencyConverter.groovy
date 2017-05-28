@@ -74,9 +74,9 @@ class DependencyConverter {
             def extDependency = project.dependencies.create(moduleVersion.toString());
 
             if (configuration.dependencies.find {
-                it.group.equals(extDependency.group) &&
-                it.name.equals(extDependency.name) &&
-                it.version.equals(extDependency.version)
+                it.group?.equals(extDependency.group) &&
+                it.name?.equals(extDependency.name) &&
+                it.version?.equals(extDependency.version)
             } == null) {
                 visit(extDependency)
             }
