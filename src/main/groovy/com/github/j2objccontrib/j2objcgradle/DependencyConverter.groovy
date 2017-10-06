@@ -73,7 +73,7 @@ class DependencyConverter {
             def moduleVersion = artifact.moduleVersion.id
             def extDependency = project.dependencies.create(moduleVersion.toString());
 
-            if (configuration.dependencies.find {
+            if (extDependency == null || configuration.dependencies.find {
                 it.group?.equals(extDependency.group) &&
                 it.name?.equals(extDependency.name) &&
                 it.version?.equals(extDependency.version)
